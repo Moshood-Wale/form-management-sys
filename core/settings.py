@@ -12,8 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 from decouple import config
-from datetime import timedelta
-import pymongo
+from pymongo import MongoClient
 from urllib.parse import quote_plus
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,8 +28,18 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "0.0.0.0",
+    "localhost",
+]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1",
+    "http://localhost"
+]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 
@@ -44,9 +53,14 @@ INSTALLED_APPS = [
     'form',
     'rest_framework',
     'djongo',
+    'debug_toolbar',
+    'corsheaders',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -79,25 +93,22 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+# MongoDB settings
+MONGODB_USERNAME = config('MONGODB_USERNAME')
+MONGODB_PASSWORD = config('MONGODB_PASSWORD')
+MONGODB_CLUSTER = config('MONGODB_CLUSTER')
+MONGODB_NAME = config('MONGODB_NAME')
+
 # URL encode the username and password
-username = quote_plus(config('MONGODB_USERNAME'))
-password = quote_plus(config('MONGODB_PASSWORD'))
+username = quote_plus(MONGODB_USERNAME)
+password = quote_plus(MONGODB_PASSWORD)
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.dummy',
-        'NAME': config('MONGODB_NAME'),
-    }
-}
+# Construct the connection string
+MONGODB_URI = f"mongodb+srv://{username}:{password}@{MONGODB_CLUSTER}/?retryWrites=true&w=majority"
 
-# Construct the connection string with encoded username and password
-connection_string = f"mongodb+srv://{username}:{password}@{config('MONGODB_CLUSTER')}/?retryWrites=true&w=majority&appName=Cluster0"
-
-# Create the MongoDB client
-client = pymongo.MongoClient(connection_string)
-
-# Access your database
-db = client[config('MONGODB_NAME')]
+# Create MongoDB client
+mongodb_client = MongoClient(MONGODB_URI)
+db = mongodb_client[MONGODB_NAME]
 
 # DATABASES = {
 #     'default': {
@@ -105,6 +116,42 @@ db = client[config('MONGODB_NAME')]
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+}
+
+SPECTACULAR_SETTINGS = {
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "DEFAULT_GENERATOR_CLASS": "drf_spectacular.generators.SchemaGenerator",
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "COMPONENT_SPLIT_PATCH": True,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayOperationId": True,
+        "displayRequestDuration": True,
+    },
+    "UPLOADED_FILES_USE_URL": True,
+    "TITLE": "FORM-MANAGEMENT API",
+    "DESCRIPTION": "FORM-MANAGEMENT API Doc",
+    "VERSION": "1.0.0",
+    "LICENCE": {"name": "BSD License"},
+    # Oauth2 related settings. used for example by django-oauth2-toolkit.
+    # https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#oauth-flows-object
+    "OAUTH2_FLOWS": [],
+    "OAUTH2_AUTHORIZATION_URL": None,
+    "OAUTH2_TOKEN_URL": None,
+    "OAUTH2_REFRESH_URL": None,
+    "OAUTH2_SCOPES": None,
+}
 
 
 # Password validation
@@ -124,6 +171,13 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
+}
 
 
 # Internationalization
