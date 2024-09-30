@@ -110,13 +110,6 @@ MONGODB_URI = f"mongodb+srv://{username}:{password}@{MONGODB_CLUSTER}/?retryWrit
 mongodb_client = MongoClient(MONGODB_URI)
 db = mongodb_client[MONGODB_NAME]
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 SWAGGER_SETTINGS = {
     "SECURITY_DEFINITIONS": {
         "Bearer": {
